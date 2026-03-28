@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -19,13 +19,21 @@ class Command(BaseModel):
 
 @app.post("/command")
 async def add_command(cmd: Command):
-    if not cmd.type or not cmd.username:
-        raise HTTPException(status_code=400, detail="Missing data")
-    command_queue.append({"type": cmd.type, "username": cmd.username, "reason": cmd.reason, "days": cmd.days, "adminId": cmd.adminId, "sent": False})
+    command_queue.append({
+        "type": cmd.type,
+        "username": cmd.username,
+        "reason": cmd.reason,
+        "days": cmd.days,
+        "adminId": cmd.adminId,
+        "sent": False
+    })
+    # Добавляем в банлист
     if cmd.type == "ban":
         bans.append({"username": cmd.username, "unbanDate": datetime.utcnow() + timedelta(days=cmd.days), "reason": cmd.reason})
-    if cmd.type == "permaban":
+    elif cmd.type == "permaban":
         bans.append({"username": cmd.username, "unbanDate": None, "reason": cmd.reason})
+    elif cmd.type == "unban":
+        bans[:] = [b for b in bans if b["username"] != cmd.username]
     return {"ok": True}
 
 @app.get("/get-commands")
@@ -46,4 +54,4 @@ async def get_banlist():
 
 @app.get("/")
 async def root():
-    return "Server is running ✅"
+    return {"status": "Server running ✅"}
