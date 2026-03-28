@@ -13,6 +13,22 @@ intents.guilds = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ===== Правильные слова =====
+PAST_TENSE = {
+    "kick": "kicked",
+    "ban": "banned",
+    "permaban": "permabanned",
+    "unban": "unbanned"
+}
+
+# ===== Цвета =====
+COLORS = {
+    "kick": 0xFFFF00,       # жёлтый
+    "ban": 0xFF0000,        # красный
+    "permaban": 0x000000,   # чёрный
+    "unban": 0xFFFFFF       # белый
+}
+
 
 async def run_bot():
     await bot.start(BOT_TOKEN)
@@ -90,7 +106,7 @@ async def process_player(interaction, cmd_type, username, reason="", days=0):
     display_name = user["name"] if user else username
     avatar = await get_avatar(user_id) if user else None
 
-    # ===== ЛОГ ФОРМАТ =====
+    # ===== ЛОГ =====
     log_text = f"""**Player:** {display_name} ({user_id})
 
 🔗 https://www.roblox.com/users/{user_id}
@@ -109,14 +125,14 @@ async def process_player(interaction, cmd_type, username, reason="", days=0):
         display_name,
         user_id,
         log_text,
-        avatar
+        avatar,
+        COLORS.get(cmd_type, 0xFFC0CB)
     )
 
+    action = PAST_TENSE.get(cmd_type, cmd_type)
+
     await interaction.edit_original_response(
-        content=f"✅ Successfully {cmd_type}ed {display_name}"
-        
-        if cmd_type == "ban":
-        content=f"✅ Successfully {cmd_type}ned {display_name}"
+        content=f"✅ Successfully {action} {display_name}."
     )
 
 
@@ -164,7 +180,7 @@ async def banlist(interaction: discord.Interaction):
 
 
 # ===== UNBANWAVE =====
-@bot.tree.command(name="unbanwave", description="Unban all temp-banned players")
+@bot.tree.command(name="unbanwave", description="Unban all temporary bans")
 async def unbanwave(interaction: discord.Interaction, reason: str):
     if not has_admin_role(interaction):
         return await interaction.response.send_message("No permission", ephemeral=True)
@@ -194,7 +210,6 @@ async def unbanwave(interaction: discord.Interaction, reason: str):
                 })
             count += 1
 
-    # ===== ЗЕЛЁНЫЙ ЛОГ =====
     log_text = f"""📄 **Administrator:** <@{interaction.user.id}>
 
 **Reason:** {reason}"""
@@ -204,9 +219,9 @@ async def unbanwave(interaction: discord.Interaction, reason: str):
         "UNBAN WAVE",
         "—",
         log_text,
-        color=0x00FF00  # ЗЕЛЁНЫЙ
+        color=0x00FF00
     )
 
     await interaction.edit_original_response(
-        content=f"✅ Unban wave completed. Unbanned {count} players."
+        content=f"✅ Successfully unbanned {count} player(s)."
     )
