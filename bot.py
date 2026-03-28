@@ -120,13 +120,25 @@ async def unban(interaction: discord.Interaction, username: str, reason: str = "
 async def banlist(interaction: discord.Interaction):
     await interaction.response.send_message("⏳ Processing...")
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"{SERVER_URL}/banlist") as res:
-            data = await res.json()
+        try:
+            async with session.get(f"{SERVER_URL}/banlist", timeout=5) as res:
+                if res.status != 200:
+                    return await interaction.edit_original_response(content=f"Error: {res.status}")
+                data = await res.json()
+        except Exception as e:
+            return await interaction.edit_original_response(content=f"Failed to fetch banlist: {e}")
+
     if not data:
         return await interaction.edit_original_response(content="No bans.")
-    text = "\n".join(f"{b['username']} ({b['username']}) — {b['daysLeft']} day(s)" for b in data)
-    await interaction.edit_original_response(content=f"```{text}```")
 
+    text_lines = []
+    for b in data:
+        user_id = b.get("userId", "Unknown")  # если сервер хранит UserId
+        username = b["username"]
+        days = b["daysLeft"]
+        text_lines.append(f"{username} ({user_id}) — {days}")
+
+    await interaction.edit_original_response(content="```" + "\n".join(text_lines) + "```")
 # =================== Запуск бота ===================
 async def run_bot():
     await bot.start(BOT_TOKEN)
