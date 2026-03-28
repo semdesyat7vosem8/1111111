@@ -5,7 +5,7 @@ import aiohttp
 from datetime import datetime
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SERVER_URL = "ТВОЯ_ССЫЛКА_ОТ_ХОСТИНГА"  # <--- вставь сюда свою ссылку
+SERVER_URL = "bot-1774698189-7271-neokokosik78.bothost.tech"  # <--- вставь сюда свою ссылку
 LOG_CHANNEL_ID = 1433031537783341097
 ADMIN_ROLE_ID = 1432275054149894227
 
