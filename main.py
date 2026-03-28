@@ -1,6 +1,5 @@
 import asyncio
 import bot
-import uvicorn
 from uvicorn import Config, Server
 
 async def main():
@@ -10,7 +9,5 @@ async def main():
     server_task = asyncio.create_task(server.serve())
     await asyncio.gather(bot_task, server_task)
 
-# --- Создаём event loop вручную для Bothost ---
-loop = asyncio.get_event_loop()
-loop.create_task(main())
-loop.run_forever()
+if __name__ == "__main__":
+    asyncio.run(main())
