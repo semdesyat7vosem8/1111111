@@ -2,10 +2,9 @@ import os
 import discord
 from discord.ext import commands
 import aiohttp
-from datetime import datetime
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SERVER_URL = "https://bot-1774698189-7271-neokokosik78.bothost.tech"  # твоя ссылка на сервер
+SERVER_URL = "https://bot-1774698189-7271-neokokosik78.bothost.tech"
 LOG_CHANNEL_ID = 1433031537783341097
 ADMIN_ROLE_ID = 1432275054149894227
 
@@ -96,7 +95,6 @@ async def on_ready():
 
 
 # ===== Slash Commands =====
-
 async def process_player(interaction, cmd_type, username, reason="", days=0):
     if not has_admin_role(interaction):
         return await interaction.response.send_message("No permission", ephemeral=True)
@@ -107,7 +105,15 @@ async def process_player(interaction, cmd_type, username, reason="", days=0):
     display_name = user["name"] if user else username
     avatar = await get_avatar(user_id) if user else None
 
+    # Duration только для команды ban
+    if cmd_type == "ban":
+        duration_text = f"{days} day(s)"
+    else:
+        duration_text = ""
+
     base_text = f"**Player:** {display_name} ({user_id})\n🔗 {profile(user_id)}\n📄 Administrator: <@{interaction.user.id}>"
+    if duration_text:
+        base_text += f"\n⏱ Duration: {duration_text}"
 
     await send_command(cmd_type, username, reason, days, interaction.user.id)
     await send_log(f"{cmd_type.upper()} LOG", display_name, user_id, f"{base_text}\n\n**Reason:** {reason}", avatar)
@@ -153,5 +159,9 @@ async def banlist(interaction: discord.Interaction):
 
     text = ""
     for b in data:
-        text += f"{b['username']} ({b['username']}) — {b['daysLeft']} day(s)\n\n"  # пустая строка между игроками
+        if b["daysLeft"] == 0 or b["daysLeft"] is None:
+            days_text = "PERMA-BANNED"
+        else:
+            days_text = f"{b['daysLeft']} day(s)"
+        text += f"{b['username']} ({b['username']}) — {days_text}\n\n"
     await interaction.edit_original_response(content=f"```{text}```")
