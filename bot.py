@@ -2,7 +2,6 @@ import os
 import discord
 from discord.ext import commands
 import aiohttp
-from datetime import datetime
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 SERVER_URL = "https://bot-1774698189-7271-neokokosik78.bothost.tech"
@@ -14,8 +13,10 @@ intents.guilds = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+
 async def run_bot():
     await bot.start(BOT_TOKEN)
+
 
 # ===== Roblox API =====
 async def get_roblox_user(username):
@@ -29,6 +30,7 @@ async def get_roblox_user(username):
     except:
         return None
 
+
 async def get_avatar(user_id):
     url = f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={user_id}&size=420x420&format=Png"
     try:
@@ -39,7 +41,8 @@ async def get_avatar(user_id):
     except:
         return None
 
-# ===== Send commands & logs =====
+
+# ===== SEND COMMAND =====
 async def send_command(cmd_type, username, reason, days, admin_id):
     async with aiohttp.ClientSession() as session:
         await session.post(f"{SERVER_URL}/command", json={
@@ -50,65 +53,94 @@ async def send_command(cmd_type, username, reason, days, admin_id):
             "adminId": admin_id
         })
 
-async def send_log(title, username, user_id, description, avatar=None):
+
+# ===== SEND LOG =====
+async def send_log(title, username, user_id, description, avatar=None, color=0xFFC0CB):
     channel = bot.get_channel(LOG_CHANNEL_ID)
     if not channel:
         return
-    embed = discord.Embed(title=title, description=description, color=0xFFC0CB)
+    embed = discord.Embed(title=title, description=description, color=color)
     if avatar:
         embed.set_thumbnail(url=avatar)
     await channel.send(content=f"{username} | {user_id}", embed=embed)
 
-def profile(user_id):
-    return f"https://www.roblox.com/users/{user_id}"
 
 def has_admin_role(interaction):
     return any(role.id == ADMIN_ROLE_ID for role in interaction.user.roles)
+
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
     await bot.tree.sync()
 
-# ===== Universal player processing =====
+
+# ===== MAIN LOGIC =====
 async def process_player(interaction, cmd_type, username, reason="", days=0):
     if not has_admin_role(interaction):
         return await interaction.response.send_message("No permission", ephemeral=True)
 
+    if not reason:
+        return await interaction.response.send_message("❌ Reason is required!", ephemeral=True)
+
     await interaction.response.send_message("⏳ Processing...")
+
     user = await get_roblox_user(username)
     user_id = user["id"] if user else "Unknown"
     display_name = user["name"] if user else username
     avatar = await get_avatar(user_id) if user else None
 
-    duration_text = f"{days} day(s)" if cmd_type == "ban" else ""
-    base_text = f"**Player:** {display_name} ({user_id})\n🔗 {profile(user_id)}\n📄 Administrator: <@{interaction.user.id}>"
-    if duration_text:
-        base_text += f"\n⏱ Duration: {duration_text}"
+    # ===== ЛОГ ФОРМАТ =====
+    log_text = f"""**Player:** {display_name} ({user_id})
+
+🔗 https://www.roblox.com/users/{user_id}
+
+📄 **Administrator:** <@{interaction.user.id}>"""
+
+    if cmd_type == "ban":
+        log_text += f"\n\n**Duration:** {days} day(s)"
+
+    log_text += f"\n\n**Reason:** {reason}"
 
     await send_command(cmd_type, username, reason, days, interaction.user.id)
-    await send_log(f"{cmd_type.upper()} LOG", display_name, user_id, f"{base_text}\n\n**Reason:** {reason}", avatar)
-    await interaction.edit_original_response(content=f"✅ Successfully {cmd_type}ed {display_name}.")
 
-# ===== Commands =====
+    await send_log(
+        f"{cmd_type.upper()} LOG",
+        display_name,
+        user_id,
+        log_text,
+        avatar
+    )
+
+    await interaction.edit_original_response(
+        content=f"✅ Successfully {cmd_type}ed {display_name}"
+    )
+
+
+# ===== COMMANDS =====
 @bot.tree.command(name="kick", description="Kick a player")
-async def kick(interaction, username: str, reason: str = "No reason set"):
+async def kick(interaction: discord.Interaction, username: str, reason: str):
     await process_player(interaction, "kick", username, reason)
 
-@bot.tree.command(name="ban", description="Ban a player for X days")
-async def ban(interaction, username: str, days: int, reason: str = "No reason set"):
+
+@bot.tree.command(name="ban", description="Ban a player")
+async def ban(interaction: discord.Interaction, username: str, days: int, reason: str):
     await process_player(interaction, "ban", username, reason, days)
 
-@bot.tree.command(name="permaban", description="Permanently ban a player")
-async def permaban(interaction, username: str, reason: str = "No reason set"):
+
+@bot.tree.command(name="permaban", description="Permanent ban")
+async def permaban(interaction: discord.Interaction, username: str, reason: str):
     await process_player(interaction, "permaban", username, reason)
 
-@bot.tree.command(name="unban", description="Unban a player")
-async def unban(interaction, username: str):
-    await process_player(interaction, "unban", username)
 
-@bot.tree.command(name="banlist", description="Show list of banned players")
-async def banlist(interaction):
+@bot.tree.command(name="unban", description="Unban player")
+async def unban(interaction: discord.Interaction, username: str, reason: str):
+    await process_player(interaction, "unban", username, reason)
+
+
+# ===== BANLIST =====
+@bot.tree.command(name="banlist", description="Show bans")
+async def banlist(interaction: discord.Interaction):
     await interaction.response.send_message("⏳ Processing...")
     try:
         async with aiohttp.ClientSession() as session:
@@ -124,14 +156,21 @@ async def banlist(interaction):
     for b in data:
         days_text = b["daysLeft"] if b["daysLeft"] == "PERMA-BANNED" else f"{b['daysLeft']} day(s)"
         text += f"{b['username']} ({b['username']}) — {days_text}\n\n"
+
     await interaction.edit_original_response(content=f"```{text}```")
 
-@bot.tree.command(name="unbanwave", description="Unban all temporary banned players")
-async def unbanwave(interaction, reason: str = "Unban Wave"):
+
+# ===== UNBANWAVE =====
+@bot.tree.command(name="unbanwave", description="Unban all temp-banned players")
+async def unbanwave(interaction: discord.Interaction, reason: str):
     if not has_admin_role(interaction):
         return await interaction.response.send_message("No permission", ephemeral=True)
 
+    if not reason:
+        return await interaction.response.send_message("❌ Reason is required!", ephemeral=True)
+
     await interaction.response.send_message("⏳ Processing unban wave...")
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{SERVER_URL}/banlist") as res:
@@ -152,6 +191,19 @@ async def unbanwave(interaction, reason: str = "Unban Wave"):
                 })
             count += 1
 
-    log_text = f"📄 Administrator: <@{interaction.user.id}>\n**Reason:** {reason}"
-    await send_log("UNBANWAVE LOG", "ALL TEMPORARY BANS", "—", log_text)
-    await interaction.edit_original_response(content=f"✅ Unban wave completed. {count} temporary bans removed.")
+    # ===== ЗЕЛЁНЫЙ ЛОГ =====
+    log_text = f"""📄 **Administrator:** <@{interaction.user.id}>
+
+**Reason:** {reason}"""
+
+    await send_log(
+        "UNBANWAVE LOG",
+        "UNBAN WAVE",
+        "—",
+        log_text,
+        color=0x00FF00  # ЗЕЛЁНЫЙ
+    )
+
+    await interaction.edit_original_response(
+        content=f"✅ Unban wave completed. Unbanned {count} players."
+    )
