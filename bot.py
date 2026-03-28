@@ -114,6 +114,9 @@ async def process_player(interaction, cmd_type, username, reason="", days=0):
 
     await interaction.edit_original_response(
         content=f"✅ Successfully {cmd_type}ed {display_name}"
+        
+        if cmd_type == "ban":
+        content=f"✅ Successfully {cmd_type}ned {display_name}"
     )
 
 
